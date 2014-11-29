@@ -1,19 +1,21 @@
 #!/bin/sh
  
+# Get your Consumer Key and Secret from apps.twitter.com
+# Configure your App to be "Read and Write"
 CKEY=""
 CSECRET=""
 AKEY=""
 ASECRET=""
  
-HTTP_GET="wget -q -O -"
-HTTP_POST="wget -q -O - --post-data"
-#HTTP_GET="curl -s"
-#HTTP_POST="curl -s --data"
+#HTTP_GET="wget -q -O -"
+#HTTP_POST="wget -q -O - --post-data"
+HTTP_GET="curl -k -s"
+HTTP_POST="curl -k -s --data"
  
 TMPDIR="/tmp"
  
 PREFIX=""
-SUFFIX=" http://bit.ly/13QU3ea #shtter"
+SUFFIX=""
  
 GenerateNonce()
 {
@@ -67,11 +69,12 @@ Encode "$HASH"
  
 GetRequestToken()
 {
-URL="http://twitter.com/oauth/request_token"
-PARAM="oauth_consumer_key=$CKEY&oauth_nonce=`GenerateNonce`&oauth_signature_method=HMAC-SHA1&oauth_timestamp=`GetTimeStamp`&oauth_token=&oauth_version=1.0"
-HASH="`GenerateHash \"GET\" \"$URL\" \"$PARAM\"`"
- 
-RTOKEN="`$HTTP_GET \"$URL?$PARAM&oauth_signature=$HASH\"`"
+URL="https://api.twitter.com/oauth/request_token"
+NONCE="`GenerateNonce`"
+TIMESTAMP="`GetTimeStamp`"
+PARAM="oauth_callback=&oauth_consumer_key=$CKEY&oauth_nonce=$NONCE&oauth_signature_method=HMAC-SHA1&oauth_timestamp=$TIMESTAMP&oauth_version=1.0"
+HASH="`GenerateHash \"POST\" \"$URL\" \"$PARAM\"`"
+RTOKEN="`$HTTP_POST \"\" --header \"Authorization: OAuth oauth_nonce=\"$NONCE\", oauth_callback=\"\", oauth_signature_method=\"HMAC-SHA1\", oauth_timestamp=\"$TIMESTAMP\", oauth_consumer_key=\"$CKEY\", oauth_signature=\"$HASH\", oauth_version=\"1.0\"\" $URL`"
 if [ "$RTOKEN" == "" ]; then
  echo "can not get request token" >&2
  exit 1
@@ -94,7 +97,7 @@ RKEY="$1"
 RSECRET="$2"
 PIN="$3"
  
-URL="http://twitter.com/oauth/access_token"
+URL="https://twitter.com/oauth/access_token"
 PARAM="oauth_consumer_key=$CKEY&oauth_nonce=`GenerateNonce`&oauth_signature_method=HMAC-SHA1&oauth_timestamp=`GetTimeStamp`&oauth_token=$RKEY&oauth_verifier=$PIN&oauth_version=1.0"
 HASH="`GenerateHash \"GET\" \"$URL\" \"$PARAM\"`"
  
@@ -113,7 +116,7 @@ sed -i "1,/^ASECRET/ s/^\(ASECRET=\).*/\1\"$ASECRET\"/" "$0"
  
 GetTimeLine()
 {
-URL="http://api.twitter.com/1/statuses/home_timeline.xml"
+URL="https://api.twitter.com/1.1/statuses/home_timeline.json"
 PARAM="oauth_consumer_key=$CKEY&oauth_nonce=`GenerateNonce`&oauth_signature_method=HMAC-SHA1&oauth_timestamp=`GetTimeStamp`&oauth_token=$AKEY&oauth_version=1.0&status="
 HASH="`GenerateHash \"GET\" \"$URL\" \"$PARAM\"`"
  
@@ -137,7 +140,7 @@ then
  exit 1
 fi
  
-URL="http://api.twitter.com/1/statuses/update.xml"
+URL="https://api.twitter.com/1.1/statuses/update.json"
 PARAM="oauth_consumer_key=$CKEY&oauth_nonce=`GenerateNonce`&oauth_signature_method=HMAC-SHA1&oauth_timestamp=`GetTimeStamp`&oauth_token=$AKEY&oauth_version=1.0&status=$TWEET"
 HASH="`GenerateHash \"POST\" \"$URL\" \"$PARAM\"`"
  
